@@ -30,6 +30,7 @@ type Config struct {
 	Configversion            *string `json:"configversion"`
 	StreamName               string  `json:"stream"`
 	MaxQueueBufferTimeMillis uint16  `json:"maxqueuebuffertimemillis"`
+	RecordTerminator         *string `json:"recordterminator"`
 }
 
 // Forwarder forwarding client
@@ -63,6 +64,10 @@ func CreateForwarder(entry config.Entry, kinesisClient ...kinesisiface.KinesisAP
 	if config.StreamName == "" {
 		log.Error("Stream name not defined. We will not start up")
 		return nil
+	}
+
+	if config.RecordTerminator == nil {
+		config.RecordTerminator = aws.String("")
 	}
 
 	var client kinesisiface.KinesisAPI
@@ -132,9 +137,7 @@ func (f Forwarder) flushQueuedMessages() error {
 				"error":         err.Error()}).Error("Could not forward message")
 			return err
 		}
-
 	}
-
 	return nil
 }
 
@@ -145,8 +148,8 @@ func (f Forwarder) Push(message string) error {
 	}
 
 	inputRecord := &kinesis.PutRecordsRequestEntry{
-		Data:         []byte(message),                            // Required
-		PartitionKey: aws.String(strconv.Itoa(rand.Intn(10000)))} //use something random for partition
+		Data:         []byte(message + *f.config.RecordTerminator), // Required
+		PartitionKey: aws.String(strconv.Itoa(rand.Intn(10000)))}   //use something random for partition
 
 	*f.outputQ = append(*f.outputQ, inputRecord)
 
@@ -156,7 +159,6 @@ func (f Forwarder) Push(message string) error {
 		(len(*f.outputQ) >= maxQUEUELENGTH) { //See notes for Kinesis PutRecords
 		f.flushQueuedMessages()
 	}
-
 	return nil
 }
 
