@@ -56,7 +56,7 @@ func CreateForwarder(entry config.Entry, sqsClient ...sqsiface.SQSAPI) forwarder
 		client = sqs.New(session.Must(session.NewSession()))
 	}
 	forwarder := Forwarder{entry.Name, client, config}
-	log.WithField("forwarderName", forwarder.Name()).Info("Created forwarder")
+	log.WithFields(log.Fields{"forwarderName": forwarder.Name(), "forwarderType": Type}).Info("Created forwarder")
 	return forwarder
 }
 
@@ -86,5 +86,11 @@ func (f Forwarder) Push(message string) error {
 	log.WithFields(log.Fields{
 		"forwarderName": f.Name(),
 		"responseID":    resp.MessageId}).Info("Forward succeeded")
+	return nil
+}
+
+// Stop stops the forwarder in theory, but for this SQS implementation this is a no-op
+func (f Forwarder) Stop() error {
+	//for SQS this is no-op
 	return nil
 }

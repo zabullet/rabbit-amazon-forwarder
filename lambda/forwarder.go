@@ -60,7 +60,6 @@ func CreateForwarder(entry config.Entry, lambdaClient ...lambdaiface.LambdaAPI) 
 	}
 
 	if config.Function == "" {
-
 		log.Error("Function/Target not defined we will not start up")
 		return nil
 	}
@@ -72,7 +71,7 @@ func CreateForwarder(entry config.Entry, lambdaClient ...lambdaiface.LambdaAPI) 
 		client = lambda.New(session.Must(session.NewSession()))
 	}
 	forwarder := Forwarder{client, entry.Name, config}
-	log.WithField("forwarderName", forwarder.Name()).Info("Created forwarder")
+	log.WithFields(log.Fields{"forwarderName": forwarder.Name(), "forwarderType": Type}).Info("Created forwarder")
 	return forwarder
 }
 
@@ -106,5 +105,11 @@ func (f Forwarder) Push(message string) error {
 	log.WithFields(log.Fields{
 		"forwarderName": f.Name(),
 		"statusCode":    resp.StatusCode}).Info("Forward succeeded")
+	return nil
+}
+
+// Stop stops the forwarder in theory, but for this Lambda implementation this is a no-op
+func (f Forwarder) Stop() error {
+	//for Lambda this is no-op
 	return nil
 }

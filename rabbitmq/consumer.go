@@ -206,6 +206,7 @@ func (c Consumer) startForwarding(params *workerParams) error {
 		case <-params.stop:
 			log.WithField("forwarderName", forwarderName).Info("Closing")
 			closeRabbitMQ(params.conn, params.ch)
+			params.forwarder.Stop()
 			return errors.New(closedBySupervisorMessage)
 		}
 	}

@@ -56,7 +56,7 @@ func CreateForwarder(entry config.Entry, snsClient ...snsiface.SNSAPI) forwarder
 		client = sns.New(session.Must(session.NewSession()))
 	}
 	forwarder := Forwarder{entry.Name, client, config}
-	log.WithField("forwarderName", forwarder.Name()).Info("Created forwarder")
+	log.WithFields(log.Fields{"forwarderName": forwarder.Name(), "forwarderType": Type}).Info("Created forwarder")
 	return forwarder
 }
 
@@ -85,5 +85,11 @@ func (f Forwarder) Push(message string) error {
 	log.WithFields(log.Fields{
 		"forwarderName": f.Name(),
 		"responseID":    resp.MessageId}).Info("Forward succeeded")
+	return nil
+}
+
+// Stop stops the forwarder in theory, but for this SNS implementation this is a no-op
+func (f Forwarder) Stop() error {
+	//for SNS this is no-op
 	return nil
 }
