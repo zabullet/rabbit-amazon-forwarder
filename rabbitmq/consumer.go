@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	log "github.com/sirupsen/logrus"
 
@@ -23,13 +24,30 @@ const (
 	ReconnectRabbitMQInterval = 10
 )
 
+// RabbitArgumentsPair describes a rabbitMQ bind or declare argument
+type RabbitArgumentsPair struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// RabbitTopologyItem describes an element of the rabbit topology to set up
+type RabbitTopologyItem struct {
+	Name      string                 `json:"name"`
+	Action    string                 `json:"action"`
+	Type      string                 `json:"type"`
+	Kind      string                 `json:"kind"`
+	Routekey  string                 `json:"routekey"`
+	To        string                 `json:"to"`
+	Arguments *[]RabbitArgumentsPair `json:"args"`
+}
+
 // Config RabbitMQ config entry
 type Config struct {
-	Configversion *string `json:"configversion"`
-	ConnectionURL string  `json:"connection"`
-	ExchangeName  string  `json:"topic"`
-	QueueName     string  `json:"queue"`
-	RoutingKey    string  `json:"routing"`
+	Configversion  *string               `json:"configversion"`
+	ConnectionURL  string                `json:"connection"`
+	QueueName      string                `json:"queue"`
+	RabbitTopology *[]RabbitTopologyItem `json:"rabbittopology"`
+	WrapMessage    bool                  `json:"wrapmessage"` //specifies whether the rabbit message should be wrapped in a json struct
 }
 
 // Consumer implementation or RabbitMQ consumer
@@ -69,14 +87,13 @@ func CreateConsumer(entry config.Entry) consumer.Client {
 
 // Name consumer name
 func (c Consumer) Name() string {
-	return c.config.Name
+	return c.name
 }
 
 // Start start consuming messages from Rabbit queue
 func (c Consumer) Start(forwarder forwarder.Client, check chan bool, stop chan bool) error {
 	log.WithFields(log.Fields{
-		"exchangeName": c.config.ExchangeName,
-		"queueName":    c.config.QueueName}).Info("Starting connecting consumer")
+		"queueName": c.config.QueueName}).Info("Starting connecting consumer")
 	for {
 		delivery, conn, ch, err := c.initRabbitMQ()
 		if err != nil {
@@ -129,46 +146,78 @@ func (c Consumer) connect() (<-chan amqp.Delivery, *amqp.Connection, *amqp.Chann
 }
 
 func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channel) (<-chan amqp.Delivery, *amqp.Connection, *amqp.Channel, error) {
+	// Setup the topology
+	if c.config.RabbitTopology != nil {
+		for _, topologyItem := range *c.config.RabbitTopology {
+			amqpArg := amqp.Table{}
+			if topologyItem.Arguments != nil {
+				for _, topologyArgument := range *topologyItem.Arguments {
+					amqpArg[topologyArgument.Key] = topologyArgument.Value
+				}
+			}
 
-	if c.RabbitTopography != nil {
-
+			switch topologyItem.Action {
+			case "declare":
+				{
+					switch topologyItem.Type {
+					case "exchange":
+						{
+							ch.ExchangeDeclare(topologyItem.Name, topologyItem.Kind, true, false, false, false, amqpArg)
+						}
+					case "queue":
+						{
+							ch.QueueDeclare(topologyItem.Name, true, false, false, false, amqpArg)
+						}
+					}
+				}
+			case "bind":
+				{
+					switch topologyItem.Type {
+					case "queue":
+						{
+							ch.QueueBind(topologyItem.Name, topologyItem.Routekey, topologyItem.To, false, amqpArg)
+						}
+					}
+				}
+			}
+		}
 	}
 
-	var err error
-	deadLetterExchangeName := c.config.QueueName + "-dead-letter"
-	deadLetterQueueName := c.config.QueueName + "-dead-letter"
-	// regular exchange
-	if err = ch.ExchangeDeclare(c.config.ExchangeName, "topic", true, false, false, false, nil); err != nil {
-		return failOnError(err, "Failed to declare an exchange:"+c.config.ExchangeName)
-	}
-	// dead-letter-exchange
-	log.WithFields(log.Fields{
-		"ExchangeName": deadLetterExchangeName}).Info("Declaring fanout Exchange")
-	if err = ch.ExchangeDeclare(deadLetterExchangeName, "fanout", true, false, false, false, nil); err != nil {
-		return failOnError(err, "Failed to declare an exchange:"+deadLetterExchangeName)
-	}
-	// dead-letter-queue
-	log.WithFields(log.Fields{
-		"QueueName": deadLetterQueueName}).Info("Declaring Queue")
-	if _, err = ch.QueueDeclare(deadLetterQueueName, true, false, false, false, nil); err != nil {
-		return failOnError(err, "Failed to declare a queue:"+deadLetterQueueName)
-	}
-	log.WithFields(log.Fields{
-		"QueueName":    deadLetterQueueName,
-		"ExchangeName": deadLetterExchangeName}).Info("Binding Queue")
-	if err = ch.QueueBind(deadLetterQueueName, "#", deadLetterExchangeName, false, nil); err != nil {
-		return failOnError(err, "Failed to bind a queue:"+deadLetterQueueName)
-	}
-	// regular queue
-	if _, err = ch.QueueDeclare(c.config.QueueName, true, false, false, false,
-		amqp.Table{
-			"x-dead-letter-exchange": deadLetterExchangeName,
-		}); err != nil {
-		return failOnError(err, "Failed to declare a queue:"+c.config.QueueName)
-	}
-	if err = ch.QueueBind(c.config.QueueName, c.config.RoutingKey, c.config.ExchangeName, false, nil); err != nil {
-		return failOnError(err, "Failed to bind a queue:"+c.config.QueueName)
-	}
+	// var err error
+	// deadLetterExchangeName := c.config.QueueName + "-dead-letter"
+	// deadLetterQueueName := c.config.QueueName + "-dead-letter"
+	// // regular exchange
+	// if err = ch.ExchangeDeclare(c.config.ExchangeName, "topic", true, false, false, false, nil); err != nil {
+	// 	return failOnError(err, "Failed to declare an exchange:"+c.config.ExchangeName)
+	// }
+	// // dead-letter-exchange
+	// log.WithFields(log.Fields{
+	// 	"ExchangeName": deadLetterExchangeName}).Info("Declaring fanout Exchange")
+	// if err = ch.ExchangeDeclare(deadLetterExchangeName, "fanout", true, false, false, false, nil); err != nil {
+	// 	return failOnError(err, "Failed to declare an exchange:"+deadLetterExchangeName)
+	// }
+	// // dead-letter-queue
+	// log.WithFields(log.Fields{
+	// 	"QueueName": deadLetterQueueName}).Info("Declaring Queue")
+	// if _, err = ch.QueueDeclare(deadLetterQueueName, true, false, false, false, nil); err != nil {
+	// 	return failOnError(err, "Failed to declare a queue:"+deadLetterQueueName)
+	// }
+	// log.WithFields(log.Fields{
+	// 	"QueueName":    deadLetterQueueName,
+	// 	"ExchangeName": deadLetterExchangeName}).Info("Binding Queue")
+	// if err = ch.QueueBind(deadLetterQueueName, "#", deadLetterExchangeName, false, nil); err != nil {
+	// 	return failOnError(err, "Failed to bind a queue:"+deadLetterQueueName)
+	// }
+	// // regular queue
+	// if _, err = ch.QueueDeclare(c.config.QueueName, true, false, false, false,
+	// 	amqp.Table{
+	// 		"x-dead-letter-exchange": deadLetterExchangeName,
+	// 	}); err != nil {
+	// 	return failOnError(err, "Failed to declare a queue:"+c.config.QueueName)
+	// }
+	// if err = ch.QueueBind(c.config.QueueName, c.config.RoutingKey, c.config.ExchangeName, false, nil); err != nil {
+	// 	return failOnError(err, "Failed to bind a queue:"+c.config.QueueName)
+	// }
 
 	msgs, err := ch.Consume(c.config.QueueName, c.Name(), false, false, false, false, nil)
 	if err != nil {
@@ -193,25 +242,42 @@ func (c Consumer) startForwarding(params *workerParams) error {
 				"consumerName": c.Name(),
 				"messageID":    d.MessageId}).Debug("Message to forward")
 
-			mm := map[string]interface{}{
-				"Headers":     "",
-				"Payload":     "",
-				"ContentType": "",
-				"Exchange":    "",
+			var message []byte
+
+			if c.config.WrapMessage == true {
+				mm := map[string]interface{}{
+					"Headers":     "",
+					"Payload":     "",
+					"ContentType": "",
+					"Exchange":    "",
+				}
+
+				var unMarshalledBody map[string]interface{}
+				unmarshalErr := json.Unmarshal(d.Body, &unMarshalledBody)
+
+				//we didn't get
+				if unmarshalErr != nil {
+					if utf8.Valid(d.Body) {
+						mm["Payload"] = string(d.Body)
+					} else {
+						mm["Payload"] = d.Body //base64 encode the data!
+					}
+				} else {
+					mm["Payload"] = unMarshalledBody
+				}
+
+				mm["Headers"] = d.Headers
+				mm["ContentType"] = d.ContentType
+				mm["Exchange"] = d.Exchange
+
+				message, _ = json.Marshal(mm)
+
+			} else {
+				message = d.Body
 			}
 
-			var unMarshalledBody map[string]interface{}
-			json.Unmarshal(d.Body, &unMarshalledBody)
+			err := params.forwarder.Push(string(message))
 
-			mm["Headers"] = d.Headers
-			mm["Payload"] = unMarshalledBody
-			mm["ContentType"] = d.ContentType
-			mm["Exchange"] = d.Exchange
-
-			mbo, _ := json.Marshal(mm)
-			//fmt.Println(string(mbo))
-
-			err := params.forwarder.Push(string(mbo))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"forwarderName": forwarderName,
