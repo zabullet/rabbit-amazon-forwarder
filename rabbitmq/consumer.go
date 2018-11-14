@@ -69,7 +69,7 @@ func CreateConsumer(entry config.Entry) consumer.Client {
 
 // Name consumer name
 func (c Consumer) Name() string {
-	return c.name
+	return c.config.Name
 }
 
 // Start start consuming messages from Rabbit queue
@@ -129,6 +129,11 @@ func (c Consumer) connect() (<-chan amqp.Delivery, *amqp.Connection, *amqp.Chann
 }
 
 func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channel) (<-chan amqp.Delivery, *amqp.Connection, *amqp.Channel, error) {
+
+	if c.RabbitTopography != nil {
+
+	}
+
 	var err error
 	deadLetterExchangeName := c.config.QueueName + "-dead-letter"
 	deadLetterQueueName := c.config.QueueName + "-dead-letter"
@@ -137,13 +142,20 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 		return failOnError(err, "Failed to declare an exchange:"+c.config.ExchangeName)
 	}
 	// dead-letter-exchange
+	log.WithFields(log.Fields{
+		"ExchangeName": deadLetterExchangeName}).Info("Declaring fanout Exchange")
 	if err = ch.ExchangeDeclare(deadLetterExchangeName, "fanout", true, false, false, false, nil); err != nil {
 		return failOnError(err, "Failed to declare an exchange:"+deadLetterExchangeName)
 	}
 	// dead-letter-queue
+	log.WithFields(log.Fields{
+		"QueueName": deadLetterQueueName}).Info("Declaring Queue")
 	if _, err = ch.QueueDeclare(deadLetterQueueName, true, false, false, false, nil); err != nil {
 		return failOnError(err, "Failed to declare a queue:"+deadLetterQueueName)
 	}
+	log.WithFields(log.Fields{
+		"QueueName":    deadLetterQueueName,
+		"ExchangeName": deadLetterExchangeName}).Info("Binding Queue")
 	if err = ch.QueueBind(deadLetterQueueName, "#", deadLetterExchangeName, false, nil); err != nil {
 		return failOnError(err, "Failed to bind a queue:"+deadLetterQueueName)
 	}
@@ -179,8 +191,27 @@ func (c Consumer) startForwarding(params *workerParams) error {
 			}
 			log.WithFields(log.Fields{
 				"consumerName": c.Name(),
-				"messageID":    d.MessageId}).Info("Message to forward")
-			err := params.forwarder.Push(string(d.Body))
+				"messageID":    d.MessageId}).Debug("Message to forward")
+
+			mm := map[string]interface{}{
+				"Headers":     "",
+				"Payload":     "",
+				"ContentType": "",
+				"Exchange":    "",
+			}
+
+			var unMarshalledBody map[string]interface{}
+			json.Unmarshal(d.Body, &unMarshalledBody)
+
+			mm["Headers"] = d.Headers
+			mm["Payload"] = unMarshalledBody
+			mm["ContentType"] = d.ContentType
+			mm["Exchange"] = d.Exchange
+
+			mbo, _ := json.Marshal(mm)
+			//fmt.Println(string(mbo))
+
+			err := params.forwarder.Push(string(mbo))
 			if err != nil {
 				log.WithFields(log.Fields{
 					"forwarderName": forwarderName,
