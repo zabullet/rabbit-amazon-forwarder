@@ -27,9 +27,9 @@ const maxQUEUELENGTH = 500
 
 // Config is the json representation of a kenisis config
 type Config struct {
-	Configversion            *string `json:"configversion"`
-	StreamName               string  `json:"stream"`
-	MaxQueueBufferTimeMillis uint16  `json:"maxqueuebuffertimemillis"`
+	Configversion            *float64 `json:"configversion"`
+	StreamName               string   `json:"stream"`
+	MaxQueueBufferTimeMillis uint16   `json:"maxqueuebuffertimemillis"`
 	RecordTerminator         *string `json:"recordterminator"`
 }
 
@@ -57,7 +57,7 @@ func CreateForwarder(entry config.Entry, kinesisClient ...kinesisiface.KinesisAP
 	}
 
 	//Maintain backwards compatibility (assume V0 config)
-	if (config.Configversion == nil) || (*config.Configversion != "v1") {
+	if (config.Configversion == nil) || (*config.Configversion != 1) {
 		log.Warn("Looks like you're using an old config format version or have forgotten the configversion parameter. We will try and recover")
 	}
 

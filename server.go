@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 
@@ -9,12 +10,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// LogLevel is the log level
 const (
 	LogLevel = "LOG_LEVEL"
 )
 
 func main() {
 	createLogger()
+
+	mux := http.NewServeMux()
+	server := http.Server{Addr: ":8080", Handler: nil}
 
 	consumerForwarderMap, err := mapping.New().Load()
 	if err != nil {
@@ -24,12 +29,16 @@ func main() {
 	if err := supervisor.Start(); err != nil {
 		log.WithField("error", err.Error()).Fatal("Could not start supervisor")
 	}
-	http.HandleFunc("/restart", supervisor.Restart)
-	http.HandleFunc("/health", supervisor.Check)
-	http.HandleFunc("/stop", supervisor.Stop)
+	mux.HandleFunc("/restart", supervisor.Restart)
+	mux.HandleFunc("/health", supervisor.Check)
+	mux.HandleFunc("/stop", supervisor.Stop)
+	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
+		server.Shutdown(context.Background())
+	})
 
 	log.Info("Starting http server")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(server.ListenAndServe())
+
 }
 
 func createLogger() {

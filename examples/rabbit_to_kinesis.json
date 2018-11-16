@@ -4,7 +4,7 @@
       "type" : "RabbitMQ",
       "name" : "test-rabbit",
       "config" : {
-        "configversion" : "v1",
+        "configversion" : 1,
         "connection" : "amqp://guest:guest@localhost:5672/",
         "queue" : "test-queue",
         "rabbittopology" : {}
@@ -14,7 +14,7 @@
       "type" : "Kinesis",
       "name" : "kinesis_data_stream",
       "config" : {
-        "configversion" : "v1",
+        "configversion" : 1,
         "maxqueuebuffertimemillis" : 1000,
         "stream" : "kinesis_data_stream",
         "recordterminator" : "\n"

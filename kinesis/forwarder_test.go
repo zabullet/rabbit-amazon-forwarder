@@ -15,7 +15,7 @@ var badRequest = "Bad request"
 
 func getEntry() config.Entry {
 	rawConfig, _ := json.Marshal(Config{
-		Configversion:            aws.String("v2"),
+		Configversion:            aws.Float64(2),
 		StreamName:               "kinesis_data_stream",
 		MaxQueueBufferTimeMillis: 800,
 	})

@@ -21,8 +21,8 @@ const (
 
 // Config a struct representing the json config
 type Config struct {
-	Configversion *string `json:"configversion"`
-	Topic         string  `json:"topic"`
+	Configversion *float64 `json:"configversion"`
+	Topic         string   `json:"topic"`
 }
 
 // Forwarder forwarding client

@@ -43,11 +43,11 @@ type RabbitTopologyItem struct {
 
 // Config RabbitMQ config entry
 type Config struct {
-	Configversion  *string               `json:"configversion"`
 	ConnectionURL  string                `json:"connection"`
-	QueueName      string                `json:"queue"`
 	RabbitTopology *[]RabbitTopologyItem `json:"rabbittopology"`
 	WrapMessage    bool                  `json:"wrapmessage"` //specifies whether the rabbit message should be wrapped in a json struct
+	Configversion *float64 `json:"configversion"`
+	QueueName     string   `json:"queue"`
 }
 
 // Consumer implementation or RabbitMQ consumer
