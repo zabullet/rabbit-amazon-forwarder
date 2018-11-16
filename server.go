@@ -19,7 +19,7 @@ func main() {
 	createLogger()
 
 	mux := http.NewServeMux()
-	server := http.Server{Addr: ":8080", Handler: nil}
+	server := http.Server{Addr: ":8080", Handler: mux}
 
 	consumerForwarderMap, err := mapping.New().Load()
 	if err != nil {

@@ -107,6 +107,13 @@ func (f Forwarder) flushQueuedMessages() error {
 
 		resp, err := f.kinesisClient.PutRecords(inputRecords)
 
+		if err != nil {
+			log.WithFields(log.Fields{
+				"forwarderName": f.Name(),
+				"error":         err.Error()}).Error("Could not forward message")
+			return err
+		}
+
 		//Create a slice to put failed messages in
 		FailureQ := make([]*kinesis.PutRecordsRequestEntry, 0)
 		if *resp.FailedRecordCount > 0 {
@@ -157,7 +164,7 @@ func (f Forwarder) Push(message string) error {
 
 	if (currentUnixTime-*f.lastSuccessTime >= int64(f.config.MaxQueueBufferTimeMillis)*int64(time.Millisecond)) || // Don't queue for more than maxQueueBufferTimeMillis
 		(len(*f.outputQ) >= maxQUEUELENGTH) { //See notes for Kinesis PutRecords
-		f.flushQueuedMessages()
+		return f.flushQueuedMessages()
 	}
 	return nil
 }
@@ -165,6 +172,5 @@ func (f Forwarder) Push(message string) error {
 // Stop stops the forwarder in this case it attempts a flush
 func (f Forwarder) Stop() error {
 	log.WithFields(log.Fields{"ForwarderName": f.Name()}).Info("Stopping Forwarder")
-	f.flushQueuedMessages()
-	return nil
+	return f.flushQueuedMessages()
 }
