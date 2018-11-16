@@ -32,13 +32,18 @@ type RabbitArgumentsPair struct {
 
 // RabbitTopologyItem describes an element of the rabbit topology to set up
 type RabbitTopologyItem struct {
-	Name      string                 `json:"name"`
-	Action    string                 `json:"action"`
-	Type      string                 `json:"type"`
-	Kind      string                 `json:"kind"`
-	Routekey  string                 `json:"routekey"`
-	To        string                 `json:"to"`
-	Arguments *[]RabbitArgumentsPair `json:"args"`
+	Name       string                 `json:"name"`
+	Action     string                 `json:"action"`
+	Type       string                 `json:"type"`
+	Kind       string                 `json:"kind"`
+	Routekey   string                 `json:"routekey"`
+	To         string                 `json:"to"`
+	Durable    bool                   `json:"durable"`
+	AutoDelete bool                   `json:"autodelete"`
+	Exclusive  bool                   `json:"exclusive"`
+	NoWait     bool                   `json:"nowait"`
+	Internal   bool                   `json:"internal"`
+	Arguments  *[]RabbitArgumentsPair `json:"args"`
 }
 
 // Config RabbitMQ config entry
@@ -162,11 +167,24 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 					switch topologyItem.Type {
 					case "exchange":
 						{
-							ch.ExchangeDeclare(topologyItem.Name, topologyItem.Kind, true, false, false, false, amqpArg)
+							ch.ExchangeDeclare(
+								topologyItem.Name,
+								topologyItem.Kind,
+								topologyItem.Durable,
+								topologyItem.AutoDelete,
+								topologyItem.Internal,
+								topologyItem.NoWait,
+								amqpArg)
 						}
 					case "queue":
 						{
-							ch.QueueDeclare(topologyItem.Name, true, false, false, false, amqpArg)
+							ch.QueueDeclare(
+								topologyItem.Name,
+								topologyItem.Durable,
+								topologyItem.AutoDelete,
+								topologyItem.Exclusive,
+								topologyItem.NoWait,
+								amqpArg)
 						}
 					}
 				}
@@ -175,7 +193,7 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 					switch topologyItem.Type {
 					case "queue":
 						{
-							ch.QueueBind(topologyItem.Name, topologyItem.Routekey, topologyItem.To, false, amqpArg)
+							ch.QueueBind(topologyItem.Name, topologyItem.Routekey, topologyItem.To, topologyItem.NoWait, amqpArg)
 						}
 					}
 				}
