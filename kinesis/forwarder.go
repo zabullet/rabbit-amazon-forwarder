@@ -30,7 +30,7 @@ type Config struct {
 	Configversion            *float64 `json:"configversion"`
 	StreamName               string   `json:"stream"`
 	MaxQueueBufferTimeMillis uint16   `json:"maxqueuebuffertimemillis"`
-	RecordTerminator         *string `json:"recordterminator"`
+	RecordTerminator         *string  `json:"recordterminator"`
 }
 
 // Forwarder forwarding client
