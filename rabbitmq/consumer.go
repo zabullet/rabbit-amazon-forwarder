@@ -25,11 +25,11 @@ const (
 
 // Config RabbitMQ config entry
 type Config struct {
-	Configversion *string `json:"configversion"`
-	ConnectionURL string  `json:"connection"`
-	ExchangeName  string  `json:"topic"`
-	QueueName     string  `json:"queue"`
-	RoutingKey    string  `json:"routing"`
+	Configversion *float64 `json:"configversion"`
+	ConnectionURL string   `json:"connection"`
+	ExchangeName  string   `json:"topic"`
+	QueueName     string   `json:"queue"`
+	RoutingKey    string   `json:"routing"`
 }
 
 // Consumer implementation or RabbitMQ consumer

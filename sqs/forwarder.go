@@ -21,8 +21,8 @@ const (
 
 // Config i
 type Config struct {
-	Queue         string  `json:"queue"`
-	Configversion *string `json:"configversion"`
+	Queue         string   `json:"queue"`
+	Configversion *float64 `json:"configversion"`
 }
 
 // Forwarder forwarding client

@@ -12,7 +12,7 @@
       "type" : "Kinesis",
       "name" : "kinesis_data_stream",
       "kinesisparameters" : {
-        "configversion" : "v1",
+        "configversion" : 1,
         "maxqueuebuffertimemillis" : 1000,
         "stream" : "kinesis_data_stream"
       }

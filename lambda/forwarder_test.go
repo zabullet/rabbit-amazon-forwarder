@@ -21,7 +21,7 @@ const (
 func TestCreateForwarderV2ConfigFormat(t *testing.T) {
 	rawConfig, _ := json.Marshal(ConfigV2{
 		Function:      "lambda-test",
-		Configversion: aws.String("v2"),
+		Configversion: aws.Float64(2),
 	})
 
 	entry := config.Entry{
@@ -84,7 +84,7 @@ func TestPush(t *testing.T) {
 
 	rawConfig, _ := json.Marshal(ConfigV2{
 		Function:      functionName,
-		Configversion: aws.String("v2"),
+		Configversion: aws.Float64(2),
 	})
 
 	entry := config.Entry{Type: "Lambda",

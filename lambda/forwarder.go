@@ -25,8 +25,8 @@ type ConfigV0 struct {
 
 // ConfigV2 a struct representing the V2 json config
 type ConfigV2 struct {
-	Configversion *string `json:"configversion"`
-	Function      string  `json:"function"`
+	Configversion *float64 `json:"configversion"`
+	Function      string   `json:"function"`
 }
 
 // Forwarder forwarding client

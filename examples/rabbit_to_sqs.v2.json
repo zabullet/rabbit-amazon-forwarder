@@ -1,7 +1,7 @@
 [
   {
     "source" : {
-      "configversion" : "2",
+      "configversion" : 2,
       "type" : "RabbitMQ",
       "name" : "test-rabbit",
       "config" : {
@@ -12,11 +12,11 @@
       }
     },
     "destination" : {
-      "configversion" : "2",
+      "configversion" : 2,
       "type" : "SQS",
       "name" : "test-queue",
       "config" : {
-        "configversion" : "v2",
+        "configversion" : 2,
         "queue" : "https://sqs.eu-west-1.amazonaws.com/XXXXXXXXX/test-queue"
       }
     }
