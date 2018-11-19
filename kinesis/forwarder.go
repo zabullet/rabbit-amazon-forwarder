@@ -78,7 +78,9 @@ func CreateForwarder(entry config.Entry, kinesisClient ...kinesisiface.KinesisAP
 	}
 
 	outputQ := make([]*kinesis.PutRecordsRequestEntry, 0)
-	currentUnixTime := time.Now().UnixNano()
+	//This will force the first message to be transmitted
+	//(it's a forcing function to check that we can actually publish to the stream)
+	currentUnixTime := int64(0)
 	maxQueueBufferTimeMillis := config.MaxQueueBufferTimeMillis
 	if maxQueueBufferTimeMillis == 0 {
 		maxQueueBufferTimeMillis = 1000

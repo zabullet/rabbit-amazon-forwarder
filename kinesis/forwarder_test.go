@@ -26,16 +26,22 @@ func getEntry() config.Entry {
 
 func TestCreateForwarder(t *testing.T) {
 	entry := getEntry()
-	forwarder := CreateForwarder(entry)
+	forwarder := CreateForwarder(entry, mockAmazonKinesis{})
 	if forwarder.Name() != entry.Name {
 		t.Errorf("wrong forwarder name, expected:%s, found: %s", entry.Name, forwarder.Name())
 	}
 }
 
 func TestEnqueue(t *testing.T) {
-	forwarder := CreateForwarder(getEntry())
+	forwarder := CreateForwarder(getEntry(), mockAmazonKinesis{resp: kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}})
 	forwarder.Push("Test")
 	kinesisForwarder := forwarder.(Forwarder)
+
+	if len(*kinesisForwarder.outputQ) != 0 {
+		t.Errorf("Initial message was not flushed")
+	}
+
+	forwarder.Push("Test")
 	if len(*kinesisForwarder.outputQ) != 1 {
 		t.Errorf("Message not added to Queue or too many items in queue")
 	}
@@ -44,6 +50,12 @@ func TestEnqueue(t *testing.T) {
 func TestPushMaxQueueSize(t *testing.T) {
 	forwarder := CreateForwarder(getEntry(), mockAmazonKinesis{resp: kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}})
 	kinesisForwarder := forwarder.(Forwarder)
+	forwarder.Push("Test")
+
+	if len(*kinesisForwarder.outputQ) != 0 {
+		t.Errorf("Initial message was not flushed")
+	}
+
 	for i := 0; i < maxQUEUELENGTH; i++ {
 		forwarder.Push("Test")
 	}
@@ -70,6 +82,7 @@ func TestErrorAndRequeue(t *testing.T) {
 	forwarder := CreateForwarder(getEntry(), mockKinesis)
 
 	kinesisForwarder := forwarder.(Forwarder)
+
 	for i := 0; i < maxQUEUELENGTH; i++ {
 		forwarder.Push("Test")
 	}

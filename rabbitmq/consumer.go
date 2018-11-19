@@ -151,6 +151,7 @@ func (c Consumer) connect() (<-chan amqp.Delivery, *amqp.Connection, *amqp.Chann
 }
 
 func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channel) (<-chan amqp.Delivery, *amqp.Connection, *amqp.Channel, error) {
+	var tolopologyErr error
 	// Setup the topology
 	if c.config.RabbitTopology != nil {
 		for _, topologyItem := range *c.config.RabbitTopology {
@@ -167,24 +168,41 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 					switch topologyItem.Type {
 					case "exchange":
 						{
-							ch.ExchangeDeclare(
+							log.WithFields(log.Fields{
+								"Action": topologyItem.Action,
+								"Type":   topologyItem.Type,
+								"Kind":   topologyItem.Kind,
+								"Name":   topologyItem.Name},
+							).Info("Building out rabbit topology")
+
+							if tolopologyErr = ch.ExchangeDeclare(
 								topologyItem.Name,
 								topologyItem.Kind,
 								topologyItem.Durable,
 								topologyItem.AutoDelete,
 								topologyItem.Internal,
 								topologyItem.NoWait,
-								amqpArg)
+								amqpArg); tolopologyErr != nil {
+								return failOnError(tolopologyErr, "Failed to build rabbit toplogy")
+							}
 						}
 					case "queue":
 						{
-							ch.QueueDeclare(
+							log.WithFields(log.Fields{
+								"Action": topologyItem.Action,
+								"Type":   topologyItem.Type,
+								"Name":   topologyItem.Name},
+							).Info("Building out rabbit topology")
+
+							if _, tolopologyErr = ch.QueueDeclare(
 								topologyItem.Name,
 								topologyItem.Durable,
 								topologyItem.AutoDelete,
 								topologyItem.Exclusive,
 								topologyItem.NoWait,
-								amqpArg)
+								amqpArg); tolopologyErr != nil {
+								return failOnError(tolopologyErr, "Failed to build rabbit toplogy")
+							}
 						}
 					}
 				}
@@ -193,7 +211,21 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 					switch topologyItem.Type {
 					case "queue":
 						{
-							ch.QueueBind(topologyItem.Name, topologyItem.Routekey, topologyItem.To, topologyItem.NoWait, amqpArg)
+							log.WithFields(log.Fields{
+								"Action":   topologyItem.Action,
+								"Type":     topologyItem.Type,
+								"Name":     topologyItem.Name,
+								"Routekey": topologyItem.Routekey,
+								"To":       topologyItem.To},
+							).Info("Building out rabbit topology")
+							if tolopologyErr = ch.QueueBind(
+								topologyItem.Name,
+								topologyItem.Routekey,
+								topologyItem.To,
+								topologyItem.NoWait,
+								amqpArg); tolopologyErr != nil {
+								return failOnError(tolopologyErr, "Failed to build rabbit toplogy")
+							}
 						}
 					}
 				}
@@ -237,6 +269,7 @@ func (c Consumer) setupExchangesAndQueues(conn *amqp.Connection, ch *amqp.Channe
 	// 	return failOnError(err, "Failed to bind a queue:"+c.config.QueueName)
 	// }
 
+	log.WithFields(log.Fields{"Name": c.config.QueueName}).Info("Starting to consume....")
 	msgs, err := ch.Consume(c.config.QueueName, c.Name(), false, false, false, false, nil)
 	if err != nil {
 		return failOnError(err, "Failed to register a consumer")
